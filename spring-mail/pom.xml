@@ -1,32 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+		xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<artifactId>spring-mail</artifactId>
-	<packaging>jar</packaging>
-	<name>spring-mail</name>
-	<description>spring mail</description>
 	<parent>
-		<groupId>es.rvillalba.spring</groupId>
+		<groupId>com.rvillalba</groupId>
 		<artifactId>springboot-samples-tools</artifactId>
-		<version>1.0.0-SNAPSHOT</version>
+		<version>2.0.0-SNAPSHOT</version>
 	</parent>
+
+	<artifactId>spring-mail</artifactId>
+	<name>spring-mail</name>
+	<description>Envío de correo con JavaMailSender probado con GreenMail</description>
+
 	<dependencies>
-		<dependency>
-			<groupId>es.rvillalba.spring</groupId>
-			<artifactId>spring-unit-test</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.icegreen</groupId>
-			<artifactId>greenmail</artifactId>
-			<version>1.5.6</version>
-			<scope>test</scope>
-		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>com.icegreen</groupId>
+			<artifactId>greenmail-junit5</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
 </project>
