@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Compilar y tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Tests de todos los módulos
+        run: mvn -B -ntp verify
+
+  oauth2-e2e:
+    name: OAuth2 de punta a punta
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Empaquetar los módulos OAuth2
+        run: mvn -B -ntp -DskipTests -pl spring-oauth2-authorization-server,spring-oauth2-resource-server -am package
+
+      - name: Arrancar servidor de autorización y API
+        run: |
+          nohup java -jar spring-oauth2-authorization-server/target/spring-oauth2-authorization-server-*.jar > auth.log 2>&1 &
+          nohup java -jar spring-oauth2-resource-server/target/spring-oauth2-resource-server-*.jar > api.log 2>&1 &
+          for url in http://localhost:9000/.well-known/oauth-authorization-server http://localhost:8081/public/ping; do
+            for i in $(seq 1 60); do curl -sf "$url" > /dev/null && break; sleep 1; done
+            curl -sf "$url" > /dev/null || { echo "No arranca $url"; cat auth.log api.log; exit 1; }
+          done
+
+      - name: Pedir token y llamar a la API
+        run: |
+          set -e
+          TOKEN=$(curl -sf -u samples-client:samples-secret -d grant_type=client_credentials -d scope=samples.read \
+                  http://localhost:9000/oauth2/token | jq -r .access_token)
+          echo "Token obtenido (${#TOKEN} caracteres)"
+
+          echo "Sin token -> 401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/api/me)" = "401"
+
+          echo "Con token samples.read -> 200"
+          curl -sf -H "Authorization: Bearer $TOKEN" http://localhost:8081/api/me | tee me.json
+          jq -e '.subject == "samples-client"' me.json
+
+          echo "Con token samples.read intentando escribir -> 403"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Authorization: Bearer $TOKEN" \
+                  -H 'Content-Type: application/json' -d '{"text":"hola"}' http://localhost:8081/api/notes)" = "403"
+
+          echo "Token manipulado -> 401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${TOKEN}x" http://localhost:8081/api/me)" = "401"
+
+      - name: Logs si falla
+        if: failure()
+        run: cat auth.log api.log

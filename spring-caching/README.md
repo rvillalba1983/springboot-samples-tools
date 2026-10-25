@@ -1,43 +1,32 @@
-# SPRING-CACHING
+# spring-caching
 
-This module configure the spring cache implementation. More info at 
+Caché con [Caffeine](https://github.com/ben-manes/caffeine) usando **dos políticas de caducidad a la vez**.
 
-	<https://docs.spring.io/spring/docs/current/spring-framework-reference/html/cache.html> 
-	<https://spring.io/guides/gs/caching/>
+## Cómo funciona
 
-## Technologies
+Spring Boot autoconfigura un único `CacheManager` (`spring.cache.caffeine.spec`). Cuando unos datos deben caducar en minutos y otros en días, se declaran varios. Es lo que hace `CacheManagersConfiguration`:
 
-*   spring-boot-starter-cache. Add cache interfaces from spring.
-*   caffeine. By default we use caffeine cache (before called Guava).
+| Bean | Especificación | Uso |
+|---|---|---|
+| `cacheManagerHalfAnHour` (`@Primary`) | `app.cache.specs.half-an-hour` | Por defecto |
+| `cacheManagerOneDay` | `app.cache.specs.one-day` | `@Cacheable(cacheManager = "cacheManagerOneDay")` |
 
-## Profiles maven to select the cache implementation
+```properties
+app.cache.specs.half-an-hour=maximumSize=1500,expireAfterWrite=30m,recordStats
+app.cache.specs.one-day=maximumSize=1500,expireAfterWrite=1d,recordStats
+```
 
-Whe have in pom.xml some profiles with needed dependencies to change the cache implementation. The profile caffeine is active by default but you can compile with other profile to get other implementation.
+`CountryService` muestra:
+- `@Cacheable` con el CacheManager por defecto y con uno concreto;
+- `unless = "#result == null"` para no intentar guardar nulos, porque los CacheManager tienen `allowNullValues=false`;
+- `@CacheEvict` para vaciar una caché.
 
-Sample maven execution:
+Para desactivar la caché, por ejemplo al depurar: `spring.cache.type=none`.
 
-	mvn clean install -Pinfinispan
-	
-The base of this module is an spring-boot-sample from Github 
+## Tests
 
-	<https://github.com/spring-projects/spring-boot/tree/master/spring-boot-samples/spring-boot-sample-cache>
-
-If you change the implementation, do you need add to your application.properties the specific properties. Yo can find this properties at 
-	
-	<https://docs.spring.io/spring-boot/docs/current/reference/html/common-application-properties.html>
-
-## Disabling cache
-
-If you need to disable the cache add to application.properties this line:
-
-	spring.cache.type=none
-	
-## Our caffeine configurations cache
-
-We have 2 beans with caffeine configuration now. One with one day and one with 30 minutes. The name of cacheManager are cacheManagerHalfAndHour and cacheManagerOneDay. By default spring are using cacheManagerHalfAndHour.
-
-If you need to use other add "cacheManager" in your method:
-
-Sample:
-
-    @Cacheable(keyGenerator = "sampleKeyGenerator",  cacheManager = "cacheManagerOneDay")
+`CountryServiceTest` usa contadores de invocaciones para comprobar:
+- que el método solo se ejecuta la primera vez;
+- que cada caché vive en su CacheManager;
+- que los nulos no se guardan;
+- que el *evict* obliga a recalcular.

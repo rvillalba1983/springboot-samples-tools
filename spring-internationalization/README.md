@@ -1,43 +1,33 @@
-# SPRING-INTERNATIONALIZATION
+# spring-internationalization
 
-Spring configuration to use messages.properties to texts.
+Textos traducidos con `MessageSource`.
 
-## Messages files
+## Cómo funciona
 
-You could put files in all modules  in src/main/resources with this format in your needed module
+- Spring Boot crea el `MessageSource` automáticamente a partir de los ficheros `messages*.properties` (`spring.messages.basename`), leídos en UTF-8.
+- El idioma de cada petición sale de la cabecera `Accept-Language`, y en el controlador basta con recibir un parámetro `Locale`.
+- Con `spring.messages.fallback-to-system-locale=false`, si el idioma pedido no existe se usa `messages.properties`, no el idioma del servidor.
 
-	messages_es.properties
-	messages_en.properties
-	
-**PLEASE THESE FILES IN UTF-8 ENCODING OR YOU COULD SEE BAD CHARACTERS**
-	
-## Properties format and java use
+Ficheros incluidos: `messages.properties` (inglés, por defecto), `messages_es.properties` y `messages_fr.properties`.
 
-The format of the properties are
+Mensajes con parámetros:
 
-	name.of.property: Text of the property
-	
-In code you need the messageSource in your spring bean
+```properties
+greeting.hello=Hola {0} {1}
+```
 
-	@Autowired
-	private MessageSource messageSource;
-    
-And to use you need the locale object (setted in all requests)
+```java
+messageSource.getMessage("greeting.hello", new Object[] {"Jon", "Snow"}, locale);
+```
 
-Generating specific locale object
- 
-	messageSource.getMessage("name.of.property", null,  new Locale("es"));
-	
-Using a Locale object from request
+## Probar
 
-	messageSource.getMessage("name.of.property", null,yourRequest.getLocale()); // if is type Locale
-	messageSource.getMessage("name.of.property", null,new Locale(yourRequest.getLocale())); // if is type string
-	
-You could use properties with parameters with this property format
+```bash
+mvn spring-boot:run
+curl -H "Accept-Language: es" "localhost:8080/greeting?name=Arya&surname=Stark"
+# {"hello":"Hola Arya Stark","farewell":"¡Adiós!"}
+```
 
-	name.of.property: The name {0} and the surname {1}
+## Tests
 
-And in code with this line
-
-	messageSource.getMessage("name.of.property", new Object[]{"Jon","Snow"},Locale.US);
-	
+`GreetingControllerTest` comprueba la respuesta en español, en francés y con un idioma no soportado (que cae al inglés), y el uso directo del `MessageSource`.
